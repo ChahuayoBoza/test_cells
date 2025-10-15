@@ -154,6 +154,7 @@ export class HomePage extends PageMixin(LitElement) {
   handleSearchCleared() {
     this.searchTerm = '';
     this.filteredCharacters = [...this.characters];
+    this.requestUpdate();
   }
 
   filterCharacters(searchTerm) {
@@ -174,13 +175,20 @@ export class HomePage extends PageMixin(LitElement) {
         return false;
       });
     }
+    this.requestUpdate(); 
   }
 
 
   handleCharacterSelected(event) {
     const character = event.detail.character;
+    console.log('Character selected:', character);
+    console.log('Character ID:', character.id);
+    
+    console.log('Attempting to navigate to character-details with ID:', character.id);
+    console.log('ID type:', typeof character.id);
     
     this.navigate('character-details', { id: character.id });
+    console.log('Navigate called');
   }
 
   handleRetryRequested() {

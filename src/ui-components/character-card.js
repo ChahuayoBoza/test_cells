@@ -240,7 +240,7 @@ export class CharacterCard extends LitElement {
 
   getCharacterImage() {
     if (this.character && this.character.portrait_path) {
-      return `https://thesimpsonsapi.com${this.character.portrait_path}`;
+      return this.character.portrait_path;
     }
     return null;
   }
@@ -252,7 +252,6 @@ export class CharacterCard extends LitElement {
   getCharacterQuote() {
     if (!this.showQuote) return '';
     
-    // Usar la primera frase como quote, o mostrar ocupación si no hay frases
     if (this.character?.phrases && this.character.phrases.length > 0) {
       return this.character.phrases[0];
     }

@@ -5,11 +5,23 @@ import '../data-managers/simpsons-data-manager.js';
 
 
 export class CharacterDetailsPage extends PageMixin(LitElement) {
+  static properties = {
+    character: { type: Object },
+    characterId: { type: String },
+    loading: { type: Boolean },
+    error: { type: String },
+    params: { type: Object }
+  };
 
-  character = null;
-  characterId = null;
-  loading = false;
-  error = null;
+  constructor() {
+    super();
+    this.character = null;
+    this.characterId = null;
+    this.loading = false;
+    this.error = null;
+    this.params = {};
+    this.simpsonsDataManager = null;
+  }
 
   static styles = css`
     :host {
@@ -37,40 +49,86 @@ export class CharacterDetailsPage extends PageMixin(LitElement) {
     }
   `;
 
-  constructor() {
-    super();
-    
-    this.simpsonsDataManager = null;
-  }
 
   connectedCallback() {
     super.connectedCallback();
-    
-    const routeParams = this.getRouteParams();
-    if (routeParams && routeParams.id) {
-      this.characterId = routeParams.id;
-    }
   }
 
   firstUpdated() {
-    this.simpsonsDataManager = this.shadowRoot.querySelector('simpsons-data-manager');
+    // Buscar el data manager global
+    this.simpsonsDataManager = document.querySelector('simpsons-data-manager');
     
-    if (this.characterId) {
+    if (this.simpsonsDataManager) {
+      this.simpsonsDataManager.addEventListener('character-details-loaded', this.handleCharacterDetailsLoaded.bind(this));
+      this.simpsonsDataManager.addEventListener('character-details-error', this.handleCharacterDetailsError.bind(this));
+    }
+    
+    if (this.params && this.params.id) {
+      this.characterId = this.params.id;
+      console.log('Character ID from params (firstUpdated):', this.characterId);
       this.loadCharacterDetails();
     }
   }
 
   updated(changedProperties) {
-    if (changedProperties.has('characterId') && this.characterId) {
+    if (changedProperties.has('params') && this.params && this.params.id) {
+      this.characterId = this.params.id;
+      console.log('Character ID from params:', this.characterId);
+      this.loadCharacterDetails();
+    }
+  }
+
+  willUpdate(changedProperties) {
+    if (changedProperties.has('params') && this.params && this.params.id) {
+      this.characterId = this.params.id;
+      console.log('Character ID from params (willUpdate):', this.characterId);
       this.loadCharacterDetails();
     }
   }
 
   async loadCharacterDetails() {
-    if (this.simpsonsDataManager && this.characterId) {
-      this.loading = true;
+    console.log('Loading character details for ID:', this.characterId);
+    
+    if (!this.characterId) {
+      console.log('No character ID available');
+      return;
+    }
+
+    const dataManager = document.querySelector('simpsons-data-manager');
+    if (!dataManager) {
+      console.log('No data manager found');
+      this.error = 'No se pudo encontrar el gestor de datos';
+      this.loading = false;
+      this.requestUpdate();
+      return;
+    }
+
+    this.loading = true;
+    this.error = null;
+    this.requestUpdate();
+
+    try {
+      const character = dataManager.characters.find(char => char.id == this.characterId);
+      
+      if (!character) {
+        throw new Error(`Personaje con ID ${this.characterId} no encontrado`);
+      }
+
+      this.character = {
+        ...character,
+        portrait_path: dataManager.getCharacterImageUrl(character)
+      };
+      
+      this.loading = false;
       this.error = null;
-      await this.simpsonsDataManager.fetchCharacterDetails(this.characterId);
+      console.log('Character loaded:', this.character);
+      this.requestUpdate();
+      
+    } catch (error) {
+      this.error = error.message;
+      this.loading = false;
+      console.log('Error loading character:', error);
+      this.requestUpdate();
     }
   }
 
@@ -78,11 +136,13 @@ export class CharacterDetailsPage extends PageMixin(LitElement) {
     this.character = event.detail.character;
     this.loading = false;
     this.error = null;
+    this.requestUpdate();
   }
 
   handleCharacterDetailsError(event) {
     this.error = event.detail.error;
     this.loading = false;
+    this.requestUpdate();
   }
 
   handleBackRequested() {
@@ -103,14 +163,51 @@ export class CharacterDetailsPage extends PageMixin(LitElement) {
   }
 
   render() {
+    console.log('Rendering character details page:', {
+      character: this.character,
+      loading: this.loading,
+      error: this.error,
+      characterId: this.characterId
+    });
+
+    if (this.loading) {
+      return html`
+        <div class="details-page-container">
+          <div style="text-align: center; padding: 50px;">
+            <div style="font-size: 18px;">Cargando detalles del personaje...</div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (this.error) {
+      return html`
+        <div class="details-page-container">
+          <div style="text-align: center; padding: 50px;">
+            <div style="color: red; font-size: 18px;">Error: ${this.error}</div>
+            <button @click="${this.handleRetryRequested}" style="margin-top: 20px; padding: 10px 20px;">
+              Reintentar
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    if (!this.character) {
+      return html`
+        <div class="details-page-container">
+          <div style="text-align: center; padding: 50px;">
+            <div style="font-size: 18px;">No se encontró el personaje</div>
+            <button @click="${this.handleBackRequested}" style="margin-top: 20px; padding: 10px 20px;">
+              Volver
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
     return html`
       <div class="details-page-container">
-        <!-- Data Manager (invisible) -->
-        <simpsons-data-manager
-          @character-details-loaded="${this.handleCharacterDetailsLoaded}"
-          @character-details-error="${this.handleCharacterDetailsError}"
-        ></simpsons-data-manager>
-
         <!-- Character Details Component -->
         <character-details
           .character="${this.character}"

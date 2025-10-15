@@ -32,19 +32,24 @@ export class SimpsonsDataManager extends LitElement {
 
       let characters = [];
       
-      if (Array.isArray(data)) {
+      if (data && data.results && Array.isArray(data.results)) {
+        characters = data.results;
+      } else if (Array.isArray(data)) {
         characters = data;
       } else if (data && Array.isArray(data.characters)) {
         characters = data.characters;
       } else if (data && Array.isArray(data.data)) {
         characters = data.data;
-      } else if (data && data.results && Array.isArray(data.results)) {
-        characters = data.results;
       } else {
         characters = [];
       }
       
-      this.characters = characters;
+      this.characters = characters.map(character => ({
+        ...character,
+        portrait_path: character.portrait_path 
+          ? `${this.apiBaseUrl}${character.portrait_path}`
+          : null
+      }));
       
       this.dispatchEvent(new CustomEvent('characters-loaded', {
         detail: { characters: this.characters },
@@ -68,31 +73,16 @@ export class SimpsonsDataManager extends LitElement {
     this.error = null;
     
     try {
-      let character = this.characters.find(char => char.id === characterId);
+      let character = this.characters.find(char => char.id == characterId);
       
       if (!character) {
-        const response = await fetch(`${this.apiBaseUrl}/api/character/${characterId}`);
-        
-        if (!response.ok) {
-          throw new Error(`Error HTTP: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data && typeof data === 'object') {
-          character = data;
-        } else if (data && data.character) {
-          character = data.character;
-        } else if (data && data.data) {
-          character = data.data;
-        }
+        throw new Error(`Personaje con ID ${characterId} no encontrado en la lista actual`);
       }
       
-      if (!character) {
-        throw new Error(`Personaje con ID ${characterId} no encontrado`);
-      }
-      
-      this.selectedCharacter = character;
+      this.selectedCharacter = {
+        ...character,
+        portrait_path: this.getCharacterImageUrl(character)
+      };
       
       this.dispatchEvent(new CustomEvent('character-details-loaded', {
         detail: { character: this.selectedCharacter },
@@ -113,7 +103,6 @@ export class SimpsonsDataManager extends LitElement {
 
   searchCharacters(searchTerm) {
     if (!searchTerm || searchTerm.trim() === '') {
-      // Si no hay término de búsqueda, mostrar todos
       this.dispatchEvent(new CustomEvent('characters-filtered', {
         detail: { characters: this.characters },
         bubbles: true

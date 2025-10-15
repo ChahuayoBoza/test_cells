@@ -425,7 +425,7 @@ export class CharacterDetails extends LitElement {
           ${this.character.portrait_path ? html`
             <img 
               class="character-image" 
-              src="https://thesimpsonsapi.com${this.character.portrait_path}" 
+              src="${this.character.portrait_path}" 
               alt="${this.character.name}"
               loading="lazy"
               @error="${(e) => e.target.style.display = 'none'}"
